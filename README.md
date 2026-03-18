@@ -24,5 +24,18 @@ To create a new environment and create a lockfile, run:
 uv sync --extra dev
 ```
 
+## About This Project
+This project provides insight about cost analytics for LLM usage and provides:
+1. Cost validation across models
+2. Cost analytics usage
+3. Monitoring and anomaly detection
+4. Find latest LLM usage trends and provide recommendation
 
+## Progress
 
+| Week | Date | Status | Deliverables | Notes |
+| --- | --- | --- | --- | --- |
+| 1 | 2026-03-18 | Done | Added logs to Unity Catalog table; Added cost comparison notebook with hardcoded actual cost | Table: `llmops_dev.logs.logs_20260201`, notebook: `notebooks/logs_data_ingestion.py` |
+| 2 | - | Planned | - | - |
+| 3 | - | Planned | - | - |
+| 4 | - | Planned | - | - |

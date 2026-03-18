@@ -1,9 +1,9 @@
 resources:
   jobs:
-    hello_world_job:
-      name: hello-world
+    logs_analytics_job:
+      name: logs_analytics
       tags:
-        project_name: "llmops-databricks-course-desinurch"
+        project_name: "logs-analytics"
 
       environments:
         - environment_key: default
@@ -13,10 +13,10 @@ resources:
               - ../dist/*.whl
 
       tasks:
-        - task_key: hello_world
+        - task_key: logs_analytics
           environment_key: default
           notebook_task:
-            notebook_path: ../notebooks/hello_world.py
+            notebook_path: ../notebooks/logs_data_analytics.py
             base_parameters:
               env: ${bundle.target}
               git_sha: "${var.git_sha}"
