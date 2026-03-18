@@ -35,7 +35,7 @@ This project provides insight about cost analytics for LLM usage and provides:
 
 | Week | Date | Status | Deliverables | Notes |
 | --- | --- | --- | --- | --- |
-| 1 | 2026-03-18 | Done | Added logs to Unity Catalog table; Added cost comparison notebook with hardcoded actual cost | Table: `llmops_dev.logs.logs_20260201`, notebook: `notebooks/logs_data_ingestion.py` |
+| 1 | 2026-03-18 | Done | Added logs to Unity Catalog table; Added cost comparison notebook with hardcoded actual cost | Table: `llmops_dev.logs.logs_20260201`, notebook: `notebooks/logs_data_analytics.py` |
 | 2 | - | Planned | - | - |
 | 3 | - | Planned | - | - |
 | 4 | - | Planned | - | - |
