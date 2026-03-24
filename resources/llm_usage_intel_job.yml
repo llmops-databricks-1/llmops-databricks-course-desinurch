@@ -1,9 +1,9 @@
 resources:
   jobs:
-    logs_analytics_job:
-      name: logs_analytics
+    llm_usage_intelligence:
+      name: llm_usage_intelligence
       tags:
-        project_name: "logs-analytics"
+        project_name: "llm-usage-intelligence"
 
       environments:
         - environment_key: default
@@ -13,10 +13,10 @@ resources:
               - ../dist/*.whl
 
       tasks:
-        - task_key: logs_analytics
+        - task_key: llm_usage_intelligence
           environment_key: default
           notebook_task:
-            notebook_path: ../notebooks/logs_data_analytics.py
+            notebook_path: ../notebooks/hw1_data_collection.py
             base_parameters:
               env: ${bundle.target}
               git_sha: "${var.git_sha}"

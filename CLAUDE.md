@@ -26,8 +26,15 @@ llmops-databricks-course-desinurch/
 ├── .github/
 │   └── workflows/ci.yml
 ├── notebooks/              # Databricks-format notebooks
-│   └── hello_world.py
+│   └── hw1_data_collection.py
 ├── resources/              # Databricks Asset Bundle job definitions (*.yml)
+├── src/
+│   └── __init__.py              # Package initialization
+│   └──  README.md                # Package documentation
+│   └──  config.py                # Configuration management
+│   └──  data_loader.py           # Data loading and enrichment
+│   └──  classifier.py            # Query classification
+│   └──  cost_analyzer.py         # Cost analysis and optimization
 ├── tests/
 ├── databricks.yml          # Databricks Asset Bundle configuration
 ├── pyproject.toml
