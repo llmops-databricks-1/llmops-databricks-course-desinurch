@@ -1,19 +1,23 @@
 """Basic tests to ensure the package is properly installed."""
 
 import importlib
+import sys
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+SRC_DIR = PROJECT_ROOT / "src"
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
 
 
-def test_package_import():
-    """Test that the package can be imported."""
-    # This will be replaced by cookiecutter with the actual package name
-    package_name = "llmops_databricks_course_desinurch"
-    module = importlib.import_module(package_name)
+def test_cost_scraper_import() -> None:
+    """Test that the cost scraper module can be imported."""
+    module = importlib.import_module("logs_curator.cost_scraper")
     assert module is not None
 
 
-def test_version_exists():
-    """Test that the package has a version attribute."""
-    package_name = "llmops_databricks_course_desinurch"
-    module = importlib.import_module(package_name)
-    assert hasattr(module, "__version__")
-    assert isinstance(module.__version__, str)
+def test_package_version_exists() -> None:
+    """Test that the package exposes a __version__ attribute."""
+    package = importlib.import_module("logs_curator")
+    assert hasattr(package, "__version__")
+    assert isinstance(package.__version__, str)
