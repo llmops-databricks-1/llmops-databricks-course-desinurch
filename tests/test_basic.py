@@ -12,12 +12,12 @@ if str(SRC_DIR) not in sys.path:
 
 def test_cost_scraper_import() -> None:
     """Test that the cost scraper module can be imported."""
-    module = importlib.import_module("logs_curator.cost_scraper")
+    module = importlib.import_module("llm_usage_intel")
     assert module is not None
 
 
 def test_package_version_exists() -> None:
     """Test that the package exposes a __version__ attribute."""
-    package = importlib.import_module("logs_curator")
+    package = importlib.import_module("llm_usage_intel")
     assert hasattr(package, "__version__")
     assert isinstance(package.__version__, str)
