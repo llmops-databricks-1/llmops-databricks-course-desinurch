@@ -27,21 +27,21 @@ def calculate_cost_metrics(df: pd.DataFrame) -> dict[str, Any]:
 
     # Cost by model
     if "model" in df.columns:
-        metrics["cost_by_model"] = df.groupby("model")["cost"].agg(
-            ["sum", "mean", "count"]
-        ).to_dict()
+        metrics["cost_by_model"] = (
+            df.groupby("model")["cost"].agg(["sum", "mean", "count"]).to_dict()
+        )
 
     # Cost by category
     if "query_category" in df.columns:
-        metrics["cost_by_category"] = df.groupby("query_category")["cost"].agg(
-            ["sum", "mean", "count"]
-        ).to_dict()
+        metrics["cost_by_category"] = (
+            df.groupby("query_category")["cost"].agg(["sum", "mean", "count"]).to_dict()
+        )
 
     # Cost by user
     if "user_id" in df.columns:
-        metrics["cost_by_user"] = df.groupby("user_id")["cost"].agg(
-            ["sum", "mean", "count"]
-        ).to_dict()
+        metrics["cost_by_user"] = (
+            df.groupby("user_id")["cost"].agg(["sum", "mean", "count"]).to_dict()
+        )
 
     return metrics
 
@@ -58,9 +58,7 @@ def identify_optimization_opportunities(df: pd.DataFrame) -> list[dict[str, Any]
     opportunities = []
 
     # Only analyze successful requests with quality scores
-    df_success = df[
-        (df["status"] == "success") & (df["quality_score"].notna())
-    ].copy()
+    df_success = df[(df["status"] == "success") & (df["quality_score"].notna())].copy()
 
     if len(df_success) == 0:
         return opportunities
@@ -112,8 +110,8 @@ def identify_optimization_opportunities(df: pd.DataFrame) -> list[dict[str, Any]
                     )
 
                     potential_savings = (
-                        expensive_model["cost_sum"] - cheaper_model["cost_mean"]
-                        * expensive_model["cost_count"]
+                        expensive_model["cost_sum"]
+                        - cheaper_model["cost_mean"] * expensive_model["cost_count"]
                     )
 
                     opportunities.append(
@@ -124,7 +122,10 @@ def identify_optimization_opportunities(df: pd.DataFrame) -> list[dict[str, Any]
                             "current_cost": expensive_model["cost_mean"],
                             "recommended_cost": cheaper_model["cost_mean"],
                             "cost_reduction_pct": (
-                                (expensive_model["cost_mean"] - cheaper_model["cost_mean"])
+                                (
+                                    expensive_model["cost_mean"]
+                                    - cheaper_model["cost_mean"]
+                                )
                                 / expensive_model["cost_mean"]
                             )
                             * 100,
@@ -154,9 +155,7 @@ def calculate_model_efficiency(df: pd.DataFrame) -> pd.DataFrame:
     Returns:
         DataFrame with efficiency metrics per model
     """
-    df_success = df[
-        (df["status"] == "success") & (df["quality_score"].notna())
-    ].copy()
+    df_success = df[(df["status"] == "success") & (df["quality_score"].notna())].copy()
 
     if len(df_success) == 0:
         return pd.DataFrame()

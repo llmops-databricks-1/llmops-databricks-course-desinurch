@@ -1,6 +1,5 @@
 """Data loading and enrichment utilities."""
 
-from datetime import datetime, timedelta
 from typing import Any
 
 import pandas as pd
@@ -193,7 +192,9 @@ def generate_synthetic_queries(n_samples: int = 1000) -> pd.DataFrame:
         query_text = template
         for key in fill_values:
             if f"{{{key}}}" in query_text:
-                query_text = query_text.replace(f"{{{key}}}", random.choice(fill_values[key]))
+                query_text = query_text.replace(
+                    f"{{{key}}}", random.choice(fill_values[key])
+                )
 
         # Estimate complexity based on category
         complexity_map = {
@@ -273,7 +274,10 @@ def enrich_logs_with_queries(
         base_score = 4.5 if "gpt-4" in model.lower() else 4.0
 
         # Some categories perform better with certain models
-        if category in ["code_generation", "code_debugging"] and "gpt-3.5" in model.lower():
+        if (
+            category in ["code_generation", "code_debugging"]
+            and "gpt-3.5" in model.lower()
+        ):
             base_score += 0.2
 
         # Add random variation
@@ -290,9 +294,7 @@ def enrich_logs_with_queries(
 
     # Add derived fields
     combined["total_tokens"] = combined["input_tokens"] + combined["output_tokens"]
-    combined["cost_per_1k_tokens"] = (
-        combined["cost"] / combined["total_tokens"]
-    ) * 1000
+    combined["cost_per_1k_tokens"] = (combined["cost"] / combined["total_tokens"]) * 1000
 
     return combined
 

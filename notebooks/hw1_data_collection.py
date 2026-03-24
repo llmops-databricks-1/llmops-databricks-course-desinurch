@@ -11,13 +11,10 @@ This notebook demonstrates:
 Uses the llm_usage_intel package for shared utilities.
 """
 
-from datetime import datetime, timedelta
-
 import pandas as pd
 from loguru import logger
 from pyspark.sql import SparkSession
 
-from llm_usage_intel.classifier import classify_query_category, extract_query_features
 from llm_usage_intel.config import get_env, load_config
 from llm_usage_intel.cost_analyzer import (
     calculate_cost_metrics,
@@ -62,13 +59,15 @@ logger.info(f"Schema {cfg.full_schema_name} ready")
 
 TABLE_NAME = "logs_20260201"
 logs_df = spark.table(f"{cfg.full_schema_name}.{TABLE_NAME}")
-logs_df = logs_df.select("data_timestamp",
-                         "data_user_id",
-                         "data_cost",
-                         "data_model",
-                         "data_user_agent",
-                         "data_input_tokens",
-                         "data_output_tokens")
+logs_df = logs_df.select(
+    "data_timestamp",
+    "data_user_id",
+    "data_cost",
+    "data_model",
+    "data_user_agent",
+    "data_input_tokens",
+    "data_output_tokens",
+)
 df_existing = logs_df.toPandas()
 df_existing.rename(
     columns={
@@ -84,7 +83,9 @@ df_existing.rename(
 )
 df_existing["timestamp"] = pd.to_datetime(df_existing["timestamp"])
 logger.info(f"Loaded {len(df_existing)} existing records")
-logger.info(f"Date range: {df_existing['timestamp'].min()} to {df_existing['timestamp'].max()}")
+logger.info(
+    f"Date range: {df_existing['timestamp'].min()} to {df_existing['timestamp'].max()}"
+)
 logger.info(f"Total cost: ${df_existing['cost'].sum():.4f}")
 logger.info(f"Models: {df_existing['model'].unique().tolist()}")
 
@@ -118,7 +119,11 @@ combined_df = enrich_logs_with_queries(df_existing, queries_df)
 logger.info(f"Created combined dataset with {len(combined_df)} records")
 logger.info(f"Columns: {combined_df.columns.tolist()}")
 logger.info("\nSample enriched records:")
-logger.info(combined_df[["timestamp", "user_id", "model", "query_category", "cost", "quality_score"]].head())
+logger.info(
+    combined_df[
+        ["timestamp", "user_id", "model", "query_category", "cost", "quality_score"]
+    ].head()
+)
 
 # COMMAND ----------
 
@@ -199,14 +204,18 @@ efficiency_df = calculate_model_efficiency(combined_df)
 
 logger.info("\nModel Efficiency Ranking:")
 logger.info("-" * 80)
-logger.info(efficiency_df[[
-    "model",
-    "cost_mean",
-    "quality_score_mean",
-    "latency_ms_mean",
-    "quality_per_dollar",
-    "value_score"
-]])
+logger.info(
+    efficiency_df[
+        [
+            "model",
+            "cost_mean",
+            "quality_score_mean",
+            "latency_ms_mean",
+            "quality_per_dollar",
+            "value_score",
+        ]
+    ]
+)
 
 # COMMAND ----------
 
@@ -222,14 +231,20 @@ logger.info("-" * 80)
 
 for i, opp in enumerate(opportunities[:5], 1):  # Show top 5
     logger.info(f"\n{i}. Category: {opp['category']}")
-    logger.info(f"   Current: {opp['current_model']} (${opp['current_cost']:.6f}, quality: {opp['current_quality']:.2f})")
-    logger.info(f"   Recommended: {opp['recommended_model']} (${opp['recommended_cost']:.6f}, quality: {opp['recommended_quality']:.2f})")
+    logger.info(
+        f" Current: {opp['current_model']} (${opp['current_cost']:.6f},"
+        f" quality: {opp['current_quality']:.2f})"
+    )
+    logger.info(
+        f" Recommended: {opp['recommended_model']} (${opp['recommended_cost']:.6f},"
+        f" quality: {opp['recommended_quality']:.2f})"
+    )
     logger.info(f"   Cost Reduction: {opp['cost_reduction_pct']:.1f}%")
     logger.info(f"   Quality Impact: {opp['quality_impact']:+.2f}")
     logger.info(f"   Affected Requests: {opp['affected_requests']}")
     logger.info(f"   Potential Savings: ${opp['potential_savings']:.4f}")
 
-total_savings = sum(opp['potential_savings'] for opp in opportunities)
+total_savings = sum(opp["potential_savings"] for opp in opportunities)
 logger.info(f"\nTotal Potential Savings: ${total_savings:.4f}")
 logger.info(f"Savings Rate: {(total_savings / cost_metrics['total_cost']) * 100:.1f}%")
 
@@ -244,11 +259,9 @@ schema = get_request_logs_schema()
 spark_df = spark.createDataFrame(combined_df, schema=schema)
 
 # Save request logs
-spark_df.write \
-    .format("delta") \
-    .mode("overwrite") \
-    .option("overwriteSchema", "true") \
-    .saveAsTable(cfg.full_request_logs_table)
+spark_df.write.format("delta").mode("overwrite").option(
+    "overwriteSchema", "true"
+).saveAsTable(cfg.full_request_logs_table)
 
 logger.info(f"Saved to: {cfg.full_request_logs_table}")
 
@@ -258,11 +271,9 @@ if opportunities:
     opportunities_df = pd.DataFrame(opportunities)
     spark_opportunities = spark.createDataFrame(opportunities_df)
 
-    spark_opportunities.write \
-        .format("delta") \
-        .mode("overwrite") \
-        .option("overwriteSchema", "true") \
-        .saveAsTable(cfg.full_optimization_insights_table)
+    spark_opportunities.write.format("delta").mode("overwrite").option(
+        "overwriteSchema", "true"
+    ).saveAsTable(cfg.full_optimization_insights_table)
 
     logger.info(f"Saved optimization insights to: {cfg.full_optimization_insights_table}")
 
@@ -282,4 +293,6 @@ logger.info("Schema:")
 saved_df.printSchema()
 
 logger.info("Sample records:")
-saved_df.select("timestamp", "user_id", "model", "query_category", "cost", "quality_score").show(5)
+saved_df.select(
+    "timestamp", "user_id", "model", "query_category", "cost", "quality_score"
+).show(5)

@@ -51,15 +51,12 @@ def classify_query_category(
     elif any(word in query_lower for word in ["summarize", "summary"]):
         return "summarization"
     elif any(
-        word in query_lower
-        for word in ["write", "draft", "compose", "email", "letter"]
+        word in query_lower for word in ["write", "draft", "compose", "email", "letter"]
     ):
         return "writing"
     elif any(word in query_lower for word in ["analyze", "analysis", "sentiment"]):
         return "analysis"
-    elif any(
-        word in query_lower for word in ["compare", "difference", "vs", "versus"]
-    ):
+    elif any(word in query_lower for word in ["compare", "difference", "vs", "versus"]):
         return "comparison"
     else:
         return "general_qa"

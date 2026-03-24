@@ -13,27 +13,27 @@ class LLMUsageConfig(BaseModel):
     catalog: str = Field(..., description="Unity Catalog name")
     db_schema: str = Field(..., description="Schema name", alias="schema")
     volume: str = Field(..., description="Volume name for data storage")
-    
+
     # Endpoints
     llm_endpoint: str = Field(..., description="LLM endpoint for analysis")
-    embedding_endpoint: str = Field(..., description="Embedding endpoint for vector search")
+    embedding_endpoint: str = Field(
+        ..., description="Embedding endpoint for vector search"
+    )
     vector_search_endpoint: str = Field(..., description="Vector search endpoint name")
     warehouse_id: str = Field(..., description="Warehouse ID")
-    
+
     # Table names
     request_logs_table: str = Field(
-        default="llm_request_logs",
-        description="Table name for LLM request logs"
+        default="llm_request_logs", description="Table name for LLM request logs"
     )
     query_embeddings_table: str = Field(
-        default="llm_query_embeddings",
-        description="Table name for query embeddings"
+        default="llm_query_embeddings", description="Table name for query embeddings"
     )
     optimization_insights_table: str = Field(
         default="llm_optimization_insights",
-        description="Table name for optimization insights"
+        description="Table name for optimization insights",
     )
-    
+
     model_config = {"populate_by_name": True}
 
     @classmethod
