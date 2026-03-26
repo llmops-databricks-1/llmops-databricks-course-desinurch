@@ -117,9 +117,7 @@ def generate_embeddings(
         for i in range(0, len(texts), batch_size):
             batch = texts[i : i + batch_size].tolist()
             try:
-                response = client.embeddings.create(
-                    model=embedding_endpoint, input=batch
-                )
+                response = client.embeddings.create(model=embedding_endpoint, input=batch)
                 batch_embeddings = [item.embedding for item in response.data]
                 embeddings.extend(batch_embeddings)
             except Exception as e:
@@ -259,7 +257,6 @@ def cluster_queries_kmeans(
     # Convert embeddings to numpy array
     embeddings = np.array(embeddings_df[embedding_column].tolist())
 
-    # Perform clustering
     kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
     clusters = kmeans.fit_predict(embeddings)
 
@@ -298,7 +295,9 @@ def analyze_clusters(
 
         # Category distribution
         if "query_category" in cluster_data.columns:
-            analysis["categories"] = cluster_data["query_category"].value_counts().to_dict()
+            analysis["categories"] = (
+                cluster_data["query_category"].value_counts().to_dict()
+            )
             analysis["dominant_category"] = cluster_data["query_category"].mode()[0]
 
         # Model distribution
@@ -307,7 +306,7 @@ def analyze_clusters(
             analysis["dominant_model"] = cluster_data["model"].mode()[0]
 
         # Numeric aggregations
-        for col in include_columns:
+        for col in include_columns:  # noqa: F402
             if col in cluster_data.columns:
                 analysis[f"{col}_mean"] = cluster_data[col].mean()
                 analysis[f"{col}_median"] = cluster_data[col].median()
@@ -323,7 +322,7 @@ def analyze_clusters(
 
 
 def find_cluster_optimization_opportunities(
-    cluster_analysis: dict[int, dict[str, Any]]
+    cluster_analysis: dict[int, dict[str, Any]],
 ) -> list[dict[str, Any]]:
     """Identify optimization opportunities within clusters.
 
@@ -353,10 +352,11 @@ def find_cluster_optimization_opportunities(
             }
 
             # Simple heuristic: if cluster is large and has cost variation
-            if analysis["size"] > 50: # Arbitrary threshold for "large" cluster
+            if analysis["size"] > 50:  # Arbitrary threshold for "large" cluster
                 opportunity["recommendation"] = (
-                    f"Analyze model performance in this cluster of {analysis['size']} queries. "
-                    f"Multiple models ({len(models)}) are being used."
+                    f"Analyze model performance in this cluster"
+                    f" of {analysis['size']} queries."
+                    f" Multiple models ({len(models)}) are being used."
                 )
                 opportunities.append(opportunity)
 
@@ -415,6 +415,7 @@ def visualize_clusters_2d(
     result_df["y"] = coords_2d[:, 1]
 
     return result_df, reducer
+
 
 def delete_vector_search_endpoint(vector_search_endpoint: str) -> None:
     """Delete a Databricks Vector Search endpoint.

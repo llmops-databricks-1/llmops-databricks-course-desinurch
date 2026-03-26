@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from loguru import logger
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, monotonically_increasing_id
+from pyspark.sql.functions import monotonically_increasing_id
 
 from llm_usage_intel.config import get_env, load_config
 from llm_usage_intel.vector_search import (
@@ -137,10 +137,16 @@ similar_queries = search_similar_queries(
 if not similar_queries.empty:
     logger.info("Top 5 similar queries:")
     for idx, row in similar_queries.iterrows():
-        logger.info(f"{idx+1}. [{row.get('query_category', 'N/A')}] {row['query_text']}")
-        logger.info(f"   Cost: ${row.get('cost', 0):.6f}, Score: {row.get('score', 0):.3f}")
+        logger.info(
+            f"{idx + 1}. [{row.get('query_category', 'N/A')}] {row['query_text']}"
+        )
+        logger.info(
+            f"   Cost: ${row.get('cost', 0):.6f}, Score: {row.get('score', 0):.3f}"
+        )
 else:
-    logger.info("Note: Vector search index may not be ready yet. Proceeding with clustering...")
+    logger.info(
+        "Note: Vector search index may not be ready yet. Proceeding with clustering..."
+    )
 
 # COMMAND ----------
 
@@ -183,18 +189,10 @@ logger.info("=" * 80)
 for cluster_id, analysis in cluster_analysis.items():
     logger.info(f"\nCluster {cluster_id}:")
     logger.info(f"  Size: {analysis['size']} queries ({analysis['percentage']:.1f}%)")
-    logger.info(
-        f"  Dominant Category: {analysis.get('dominant_category', 'N/A')}"
-    )
-    logger.info(
-        f"  Dominant Model: {analysis.get('dominant_model', 'N/A')}"
-    )
-    logger.info(
-        f"  Avg Cost: ${analysis.get('cost_mean', 0):.6f}"
-    )
-    logger.info(
-        f"  Avg Quality: {analysis.get('quality_score_mean', 0):.2f}"
-    )
+    logger.info(f"  Dominant Category: {analysis.get('dominant_category', 'N/A')}")
+    logger.info(f"  Dominant Model: {analysis.get('dominant_model', 'N/A')}")
+    logger.info(f"  Avg Cost: ${analysis.get('cost_mean', 0):.6f}")
+    logger.info(f"  Avg Quality: {analysis.get('quality_score_mean', 0):.2f}")
 
     if "sample_queries" in analysis:
         logger.info("  Sample queries:")
@@ -222,7 +220,7 @@ for i, opp in enumerate(cluster_opportunities, 1):
     logger.info(f"   Size: {opp['size']} queries")
     logger.info(f"   Current models: {opp['current_models']}")
     logger.info(f"   Avg cost: ${opp['avg_cost']:.6f}")
-    if opp['avg_quality']:
+    if opp["avg_quality"]:
         logger.info(f"   Avg quality: {opp['avg_quality']:.2f}")
     logger.info(f"   Recommendation: {opp['recommendation']}")
 
@@ -331,7 +329,7 @@ axes[1].set_ylabel("UMAP Dimension 2")
 plt.colorbar(scatter2, ax=axes[1], label="Cost ($)")
 
 plt.tight_layout()
-display(fig)
+# display(fig)
 
 # COMMAND ----------
 
@@ -384,17 +382,14 @@ for cluster_id in sorted(df_clustered["cluster_id"].unique()):
     if "query_category" in cluster_data.columns:
         top_category = cluster_data["query_category"].mode()[0]
         category_pct = (
-            (cluster_data["query_category"] == top_category).sum()
-            / len(cluster_data)
+            (cluster_data["query_category"] == top_category).sum() / len(cluster_data)
         ) * 100
         logger.info(f"  Primary use case: {top_category} ({category_pct:.1f}%)")
 
     # Most used model
     if "model" in cluster_data.columns:
         top_model = cluster_data["model"].mode()[0]
-        model_pct = (
-            (cluster_data["model"] == top_model).sum() / len(cluster_data)
-        ) * 100
+        model_pct = ((cluster_data["model"] == top_model).sum() / len(cluster_data)) * 100
         logger.info(f"  Primary model: {top_model} ({model_pct:.1f}%)")
 
     # Cost efficiency
