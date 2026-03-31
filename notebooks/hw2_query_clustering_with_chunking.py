@@ -14,10 +14,10 @@ This notebook demonstrates:
 Uses the llm_usage_intel package for shared utilities.
 """
 
+import pandas as pd
 from loguru import logger
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, explode, monotonically_increasing_id
-from pyspark.sql.types import ArrayType, IntegerType, StringType, StructField, StructType
+from pyspark.sql.functions import monotonically_increasing_id
 
 from llm_usage_intel.chunking import (
     chunk_with_metadata,
@@ -35,7 +35,6 @@ from llm_usage_intel.vector_search import (
     find_cluster_optimization_opportunities,
     generate_embeddings,
     search_similar_queries,
-    visualize_clusters_2d,
 )
 
 # COMMAND ----------
@@ -73,8 +72,8 @@ df_logs.select("query_text", "query_category", "model", "cost").show(5, truncate
 # MAGIC %md
 # MAGIC ## 2. Analyze Query Length and Identify Long Queries
 # MAGIC
-# MAGIC From Lecture 2.3, we learned that embedding models have token limits (typically 512 tokens).
-# MAGIC Let's identify queries that need chunking.
+# MAGIC embedding models have token limits (typically 512 tokens).
+# MAGIC identify queries that need chunking.
 
 # COMMAND ----------
 
@@ -93,7 +92,7 @@ df_logs_pd["needs_chunking"] = df_logs_pd["query_text_clean"].apply(
     lambda x: should_chunk(x, max_tokens=512)
 )
 
-logger.info(f"Query Length Analysis:")
+logger.info("Query Length Analysis:")
 logger.info(f"  Total queries: {len(df_logs_pd)}")
 logger.info(f"  Avg tokens: {df_logs_pd['estimated_tokens'].mean():.0f}")
 logger.info(f"  Max tokens: {df_logs_pd['estimated_tokens'].max()}")
@@ -164,15 +163,12 @@ logger.info(f"Created {len(all_chunks)} chunks from {len(df_logs_pd)} queries")
 
 # COMMAND ----------
 
-# Convert chunks to DataFrame
-import pandas as pd
-
 df_chunks = pd.DataFrame(all_chunks)
 
 # Rename 'text' to 'query_text' for consistency
 df_chunks = df_chunks.rename(columns={"text": "query_text"})
 
-logger.info(f"\nChunk Statistics:")
+logger.info("\nChunk Statistics:")
 logger.info(f"  Total chunks: {len(df_chunks)}")
 logger.info(f"  Original queries: {len(df_logs_pd)}")
 logger.info(f"  Expansion ratio: {len(df_chunks) / len(df_logs_pd):.2f}x")
@@ -180,12 +176,12 @@ logger.info(f"  Avg chunk size: {df_chunks['chunk_length'].mean():.0f} chars")
 logger.info(f"  Avg tokens per chunk: {df_chunks['estimated_tokens'].mean():.0f}")
 
 # Show chunked queries
-chunked_queries = df_chunks[df_chunks["is_chunked"] == True]
+chunked_queries = df_chunks[df_chunks["is_chunked"]]
 if len(chunked_queries) > 0:
-    logger.info(f"\nExample of chunked query:")
+    logger.info("\nExample of chunked query:")
     example = chunked_queries.iloc[0]
     logger.info(f"  Original row: {example['original_row_id']}")
-    logger.info(f"  Chunk {example['chunk_id']+1}/{example['total_chunks']}")
+    logger.info(f"  Chunk {example['chunk_id'] + 1}/{example['total_chunks']}")
     logger.info(f"  Text: {example['query_text'][:150]}...")
 
 # COMMAND ----------
@@ -201,9 +197,7 @@ if len(chunked_queries) > 0:
 df_chunks_spark = spark.createDataFrame(df_chunks)
 
 # Add unique row ID for vector search
-df_chunks_spark = df_chunks_spark.withColumn(
-    "row_id", monotonically_increasing_id()
-)
+df_chunks_spark = df_chunks_spark.withColumn("row_id", monotonically_increasing_id())
 
 # Generate embeddings (this may take a few minutes)
 logger.info(f"Generating embeddings using: {cfg.embedding_endpoint}")
@@ -246,10 +240,11 @@ df_for_clustering = df_embeddings_pd[df_embeddings_pd["chunk_id"] == 0].copy()
 
 logger.info(f"Queries for clustering: {len(df_for_clustering)}")
 logger.info(
-    f"  Original queries: {len(df_for_clustering[df_for_clustering['is_chunked'] == False])}"
+    f"Original queries: {len(df_for_clustering[~df_for_clustering['is_chunked']])}"
 )
 logger.info(
-    f"  First chunks of long queries: {len(df_for_clustering[df_for_clustering['is_chunked'] == True])}"
+    "First chunks of long queries:"
+    f" {len(df_for_clustering[df_for_clustering['is_chunked']])}"
 )
 
 # COMMAND ----------
@@ -261,9 +256,6 @@ logger.info(
 # MAGIC This demonstrates how chunking improves search for long queries.
 
 # COMMAND ----------
-
-# Create vector search index
-from llm_usage_intel.vector_search import create_vector_search_index
 
 # Note: This creates a Databricks Vector Search index
 # If the endpoint doesn't exist, it will be created
@@ -294,7 +286,10 @@ also implement retry logic with exponential backoff for failed operations.
 logger.info("\nTesting Vector Search with Long Query:")
 logger.info("=" * 80)
 logger.info(f"Query: {test_long_query.strip()[:100]}...")
-logger.info(f"Query length: {len(test_long_query)} chars (~{estimate_tokens(test_long_query)} tokens)")
+logger.info(
+    f"Query length: {len(test_long_query)} chars\n"
+    f"(~{estimate_tokens(test_long_query)} tokens)"
+)
 
 # Check if this would need chunking
 if should_chunk(test_long_query):
@@ -310,6 +305,7 @@ else:
 # Search for similar queries (using the full long query)
 try:
     similar_queries = search_similar_queries(
+        vector_search_endpoint=cfg.vector_search_endpoint,
         index_name=f"{cfg.full_query_embeddings_table}_idx",
         query_text=test_long_query.strip(),
         embedding_endpoint=cfg.embedding_endpoint,
@@ -321,10 +317,16 @@ try:
         logger.info("-" * 80)
         for idx, row in similar_queries.iterrows():
             is_chunked = row.get("is_chunked", False)
-            chunk_info = f" [Chunk {row.get('chunk_id', 0)+1}/{row.get('total_chunks', 1)}]" if is_chunked else ""
-            logger.info(f"\n{idx+1}. [{row.get('query_category', 'N/A')}]{chunk_info}")
+            chunk_info = (
+                f" [Chunk {row.get('chunk_id', 0) + 1}/{row.get('total_chunks', 1)}]"
+                if is_chunked
+                else ""
+            )
+            logger.info(f"\n{idx + 1}. [{row.get('query_category', 'N/A')}]{chunk_info}")
             logger.info(f"   Query: {row['query_text'][:100]}...")
-            logger.info(f"   Model: {row.get('model', 'N/A')}, Cost: ${row.get('cost', 0):.6f}")
+            logger.info(
+                f"   Model: {row.get('model', 'N/A')}, Cost: ${row.get('cost', 0):.6f}"
+            )
             logger.info(f"   Score: {row.get('score', 0):.3f}")
     else:
         logger.info("No similar queries found (vector search may not be ready yet)")
@@ -338,10 +340,14 @@ except Exception as e:
 test_short_query = "Fix Python TypeError"
 
 logger.info(f"\nTesting with Short Query: '{test_short_query}'")
-logger.info(f"Query length: {len(test_short_query)} chars (~{estimate_tokens(test_short_query)} tokens)")
+logger.info(
+    f"Query length: {len(test_short_query)} chars\n"
+    f"(~{estimate_tokens(test_short_query)} tokens)"
+)
 
 try:
     similar_short = search_similar_queries(
+        vector_search_endpoint=cfg.vector_search_endpoint,
         index_name=f"{cfg.full_query_embeddings_table}_idx",
         query_text=test_short_query,
         embedding_endpoint=cfg.embedding_endpoint,
@@ -351,8 +357,11 @@ try:
     if not similar_short.empty:
         logger.info("Top 3 Similar Queries:")
         for idx, row in similar_short.iterrows():
-            logger.info(f"{idx+1}. {row['query_text'][:80]}... (score: {row.get('score', 0):.3f})")
-except Exception as e:
+            logger.info(
+                f"{idx + 1}. {row['query_text'][:80]}...\n"
+                f"   (score: {row.get('score', 0):.3f})"
+            )
+except Exception:
     logger.info("Vector search test skipped (continuing with clustering)")
 
 # COMMAND ----------
@@ -365,7 +374,7 @@ except Exception as e:
 logger.info(f"Clustering {len(df_for_clustering)} queries...")
 
 # Perform clustering
-n_clusters = 10 
+n_clusters = 10
 df_clustered = cluster_queries_kmeans(
     df_for_clustering, embedding_column="embedding", n_clusters=n_clusters
 )
@@ -401,7 +410,7 @@ for cluster_id, analysis in cluster_analysis.items():
 
     # Check if this cluster has chunked queries
     cluster_data = df_clustered[df_clustered["cluster_id"] == cluster_id]
-    chunked_count = (cluster_data["is_chunked"] == True).sum()
+    chunked_count = (cluster_data["is_chunked"]).sum()
     if chunked_count > 0:
         logger.info(f"  Long queries (chunked): {chunked_count}")
 
@@ -413,47 +422,14 @@ for cluster_id, analysis in cluster_analysis.items():
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 9. Compare Chunked vs Non-Chunked Query Performance
-
-# COMMAND ----------
-
-logger.info("\nChunking Impact Analysis:")
-logger.info("=" * 80)
-
-non_chunked = df_clustered[df_clustered["is_chunked"] == False]
-chunked = df_clustered[df_clustered["is_chunked"] == True]
-
-if len(chunked) > 0:
-    logger.info(f"Non-chunked queries: {len(non_chunked)}")
-    logger.info(f"  Avg cost: ${non_chunked['cost'].mean():.6f}")
-    logger.info(f"  Avg quality: {non_chunked['quality_score'].mean():.2f}")
-    logger.info(f"  Avg tokens: {non_chunked['total_tokens'].mean():.0f}")
-
-    logger.info(f"\nChunked queries (long): {len(chunked)}")
-    logger.info(f"  Avg cost: ${chunked['cost'].mean():.6f}")
-    logger.info(f"  Avg quality: {chunked['quality_score'].mean():.2f}")
-    logger.info(f"  Avg tokens: {chunked['total_tokens'].mean():.0f}")
-
-    logger.info(
-        f"\nObservation: Long queries cost "
-        f"{(chunked['cost'].mean() / non_chunked['cost'].mean()):.1f}x more"
-    )
-else:
-    logger.info("No queries required chunking in this dataset")
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ## 10. Identify Optimization Opportunities per Cluster
+# MAGIC ## 9. Identify Optimization Opportunities per Cluster
 
 # COMMAND ----------
 
 # Find optimization opportunities
 cluster_opportunities = find_cluster_optimization_opportunities(cluster_analysis)
 
-logger.info(
-    f"\nFound {len(cluster_opportunities)} cluster optimization opportunities:"
-)
+logger.info(f"\nFound {len(cluster_opportunities)} cluster optimization opportunities:")
 logger.info("=" * 80)
 
 for i, opp in enumerate(cluster_opportunities, 1):
@@ -464,73 +440,6 @@ for i, opp in enumerate(cluster_opportunities, 1):
     if opp["avg_quality"]:
         logger.info(f"   Avg quality: {opp['avg_quality']:.2f}")
     logger.info(f"   Recommendation: {opp['recommendation']}")
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ## 11. Visualize Clusters (2D Projection)
-
-# COMMAND ----------
-
-# Reduce to 2D for visualization
-logger.info("Reducing embeddings to 2D for visualization...")
-df_viz, _ = visualize_clusters_2d(df_clustered, embedding_column="embedding")
-
-logger.info("2D projection complete!")
-
-# COMMAND ----------
-
-# Create visualization using matplotlib
-import matplotlib.pyplot as plt
-
-fig, axes = plt.subplots(1, 3, figsize=(20, 6))
-
-# Plot 1: Color by cluster
-scatter1 = axes[0].scatter(
-    df_viz["x"],
-    df_viz["y"],
-    c=df_viz["cluster_id"],
-    cmap="tab10",
-    alpha=0.6,
-    s=30,
-)
-axes[0].set_title("Query Clusters (by K-means)", fontsize=14)
-axes[0].set_xlabel("UMAP Dimension 1")
-axes[0].set_ylabel("UMAP Dimension 2")
-plt.colorbar(scatter1, ax=axes[0], label="Cluster ID")
-
-# Plot 2: Color by cost
-scatter2 = axes[1].scatter(
-    df_viz["x"],
-    df_viz["y"],
-    c=df_viz["cost"],
-    cmap="RdYlGn_r",
-    alpha=0.6,
-    s=30,
-)
-axes[1].set_title("Query Cost Distribution", fontsize=14)
-axes[1].set_xlabel("UMAP Dimension 1")
-axes[1].set_ylabel("UMAP Dimension 2")
-plt.colorbar(scatter2, ax=axes[1], label="Cost ($)")
-
-# Plot 3: Highlight chunked queries
-colors = ["blue" if not chunked else "red" for chunked in df_viz["is_chunked"]]
-scatter3 = axes[2].scatter(df_viz["x"], df_viz["y"], c=colors, alpha=0.6, s=30)
-axes[2].set_title("Chunked vs Non-Chunked Queries", fontsize=14)
-axes[2].set_xlabel("UMAP Dimension 1")
-axes[2].set_ylabel("UMAP Dimension 2")
-
-# Add legend
-from matplotlib.patches import Patch
-
-legend_elements = [
-    Patch(facecolor="blue", label="Normal queries"),
-    Patch(facecolor="red", label="Long queries (chunked)"),
-]
-axes[2].legend(handles=legend_elements)
-
-plt.tight_layout()
-display(fig)
 
 # COMMAND ----------
 
@@ -552,8 +461,6 @@ logger.info(f"Saved cluster assignments to: {clustered_table}")
 # COMMAND ----------
 
 # Save cluster summary
-import pandas as pd
-
 cluster_summary = []
 for cluster_id, analysis in cluster_analysis.items():
     cluster_summary.append(
