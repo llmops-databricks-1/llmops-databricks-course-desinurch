@@ -4,9 +4,7 @@ import re
 from typing import Any
 
 
-def fixed_size_chunking(
-    text: str, chunk_size: int = 500, overlap: int = 50
-) -> list[str]:
+def fixed_size_chunking(text: str, chunk_size: int = 500, overlap: int = 50) -> list[str]:
     """Create fixed-size chunks with overlap.
 
     Args:
