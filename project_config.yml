@@ -7,8 +7,8 @@ dev:
   volume: logs_20260201
   llm_endpoint: databricks-llama-4-maverick
   embedding_endpoint: databricks-gte-large-en
-  warehouse_id: 7077f4cb0e616c62
-  vector_search_endpoint: llmops_course_vs_endpoint
+  warehouse_id: 08fe4a6cb0b7d0ae
+  vector_search_endpoint: llm_usage_intel_vs_endpoint
   genie_space_id: 01f113061bf41578baff744a41bd9ab0
 
 # Acceptance/Staging environment
@@ -18,8 +18,8 @@ acc:
   volume: logs_20260201
   llm_endpoint: databricks-meta-llama-3-1-70b-instruct
   embedding_endpoint: databricks-gte-large-en
-  warehouse_id: 7077f4cb0e616c62
-  vector_search_endpoint: llmops_course_vs_endpoint
+  warehouse_id: 08fe4a6cb0b7d0ae
+  vector_search_endpoint: llm_usage_intel_vs_endpoint
   genie_space_id: 01f113061bf41578baff744a41bd9ab0
 
 # Production environment
@@ -29,8 +29,8 @@ prd:
   volume: logs_20260201
   llm_endpoint: databricks-meta-llama-3-1-70b-instruct
   embedding_endpoint: databricks-gte-large-en
-  warehouse_id: 7077f4cb0e616c62
-  vector_search_endpoint: llmops_course_vs_endpoint
+  warehouse_id: 08fe4a6cb0b7d0ae
+  vector_search_endpoint: llm_usage_intel_vs_endpoint
   genie_space_id: 01f113061bf41578baff744a41bd9ab0
 
 # Model configuration
