@@ -24,5 +24,23 @@ To create a new environment and create a lockfile, run:
 uv sync --extra dev
 ```
 
+## About This Project
+Analytics and optimization utilities for LLM usage patterns.
 
+## Overview
 
+This package provides tools to:
+- Collect and enrich LLM request logs
+- Analyze cost patterns across models and categories
+- Identify optimization opportunities
+- Calculate model efficiency metrics
+- Classify queries by category
+
+## Progress
+
+| Week | Date | Status | Deliverables | Notes |
+| --- | --- | --- | --- | --- |
+| 1 | 2026-03-18 | Done | Added logs to Unity Catalog table; Added cost comparison notebook | Table: `llmops_dev.logs.logs_20260201`, notebook: `notebooks/hw1_data_collection.py` |
+| 2 | - | Planned | - | - |
+| 3 | - | Planned | - | - |
+| 4 | - | Planned | - | - |

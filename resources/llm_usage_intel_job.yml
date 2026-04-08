@@ -1,9 +1,9 @@
 resources:
   jobs:
-    hello_world_job:
-      name: hello-world
+    llm_usage_intelligence:
+      name: llm_usage_intelligence
       tags:
-        project_name: "llmops-databricks-course-desinurch"
+        project_name: "llm-usage-intelligence"
 
       environments:
         - environment_key: default
@@ -13,10 +13,10 @@ resources:
               - ../dist/*.whl
 
       tasks:
-        - task_key: hello_world
+        - task_key: llm_usage_intelligence
           environment_key: default
           notebook_task:
-            notebook_path: ../notebooks/hello_world.py
+            notebook_path: ../notebooks/hw1_data_collection.py
             base_parameters:
               env: ${bundle.target}
               git_sha: "${var.git_sha}"
