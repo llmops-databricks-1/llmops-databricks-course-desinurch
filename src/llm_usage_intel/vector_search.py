@@ -220,7 +220,7 @@ def analyze_clusters(
             analysis["dominant_model"] = cluster_data["model"].mode()[0]
 
         # Numeric aggregations
-        for col in include_columns:
+        for col in include_columns:  # noqa: F402
             if col in cluster_data.columns:
                 analysis[f"{col}_mean"] = cluster_data[col].mean()
                 analysis[f"{col}_median"] = cluster_data[col].median()
@@ -268,7 +268,8 @@ def find_cluster_optimization_opportunities(
             # Simple heuristic: if cluster is large and has cost variation
             if analysis["size"] > 50:  # Significant cluster
                 opportunity["recommendation"] = (
-                    f"Analyze model performance in this cluster of {analysis['size']} queries. "
+                    f"Analyze model performance in this cluster of"
+                    f" {analysis['size']} queries. "
                     f"Multiple models ({len(models)}) are being used."
                 )
                 opportunities.append(opportunity)

@@ -1,11 +1,10 @@
 # Databricks notebook source
+from arxiv_curator.config import ProjectConfig
 from databricks import agents
 from databricks.sdk import WorkspaceClient
 from databricks.sdk.runtime import dbutils
 from loguru import logger
 from mlflow import MlflowClient
-
-from arxiv_curator.config import ProjectConfig
 
 # COMMAND ----------
 

@@ -77,9 +77,7 @@ class BudgetManager:
         try:
             df = spark.table(self.budget_table)
             current_spend = (
-                df.filter(df.month == current_month)
-                .agg({"cost": "sum"})
-                .collect()[0][0]
+                df.filter(df.month == current_month).agg({"cost": "sum"}).collect()[0][0]
             )
             return float(current_spend) if current_spend else 0.0
         except Exception:
@@ -207,25 +205,25 @@ class BudgetManager:
         }
 
         # Append to budget tracking table
-        budget_record_schema = StructType([
-            StructField("timestamp", TimestampType(), True),
-            StructField("month", StringType(), True),
-            StructField("cost", DoubleType(), True),
-            StructField("model", StringType(), True),
-            StructField("user_id", StringType(), True),
-            StructField("request_id", StringType(), True),
-            StructField("session_id", StringType(), True),
-            StructField("query_category", StringType(), True),
-            StructField("estimated_tokens", IntegerType(), True),
-            StructField("budget_tier", StringType(), True),
-            StructField("routing_rule", StringType(), True),
-        ])
+        budget_record_schema = StructType(
+            [
+                StructField("timestamp", TimestampType(), True),
+                StructField("month", StringType(), True),
+                StructField("cost", DoubleType(), True),
+                StructField("model", StringType(), True),
+                StructField("user_id", StringType(), True),
+                StructField("request_id", StringType(), True),
+                StructField("session_id", StringType(), True),
+                StructField("query_category", StringType(), True),
+                StructField("estimated_tokens", IntegerType(), True),
+                StructField("budget_tier", StringType(), True),
+                StructField("routing_rule", StringType(), True),
+            ]
+        )
         df = spark.createDataFrame([record], schema=budget_record_schema)
         df.write.format("delta").mode("append").saveAsTable(self.budget_table)
 
-    def get_spending_by_user(
-        self, spark: SparkSession, top_n: int = 10
-    ) -> pd.DataFrame:
+    def get_spending_by_user(self, spark: SparkSession, top_n: int = 10) -> pd.DataFrame:
         """Get top spending users for current month.
 
         Args:
@@ -252,9 +250,7 @@ class BudgetManager:
         except Exception:
             return pd.DataFrame()
 
-    def get_spending_by_model(
-        self, spark: SparkSession, top_n: int = 10
-    ) -> pd.DataFrame:
+    def get_spending_by_model(self, spark: SparkSession, top_n: int = 10) -> pd.DataFrame:
         """Get spending breakdown by model for current month.
 
         Args:
@@ -281,9 +277,7 @@ class BudgetManager:
         except Exception:
             return pd.DataFrame()
 
-    def should_throttle(
-        self, spark: SparkSession, threshold_pct: float = 95
-    ) -> bool:
+    def should_throttle(self, spark: SparkSession, threshold_pct: float = 95) -> bool:
         """Determine if requests should be throttled due to budget.
 
         Args:

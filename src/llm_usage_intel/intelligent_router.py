@@ -4,7 +4,7 @@ import pandas as pd
 from pyspark.sql import SparkSession
 
 from llm_usage_intel.budget_manager import BudgetManager
-from llm_usage_intel.classifier import classify_query_category, extract_query_features
+from llm_usage_intel.classifier import extract_query_features
 from llm_usage_intel.vector_search import search_similar_queries
 
 
@@ -153,16 +153,15 @@ class IntelligentRouter:
         )
 
         # 6. Validate budget
-        estimated_cost = self.estimate_cost(
-            routing_decision["model"], estimated_tokens
-        )
+        estimated_cost = self.estimate_cost(routing_decision["model"], estimated_tokens)
 
         # If budget critical and cost too high, force cheaper model
         if budget_tier == "critical" and estimated_cost > 0.01:
+            reasoning_part = f"Budget CRITICAL: Forced to cheapest model.{routing_decision['reasoning']}"  # noqa: E501
             routing_decision.update(
                 {
                     "model": self.model_tiers["critical"][0],
-                    "reasoning": f"BUDGET CRITICAL: Forced to cheapest model. {routing_decision['reasoning']}",
+                    "reasoning": reasoning_part,
                     "budget_override": True,
                 }
             )
@@ -199,9 +198,8 @@ class IntelligentRouter:
         # Find clusters with this category
         matching_clusters = []
         for cluster_id, analysis in self.cluster_analysis.items():
-            if (
-                analysis.get("dominant_category") == category
-                or category in analysis.get("categories", {})
+            if analysis.get("dominant_category") == category or category in analysis.get(
+                "categories", {}
             ):
                 matching_clusters.append(
                     {
@@ -222,9 +220,7 @@ class IntelligentRouter:
             }
 
         # Sort by quality (descending) then cost (ascending)
-        matching_clusters.sort(
-            key=lambda x: (-x["avg_quality"], x["avg_cost"])
-        )
+        matching_clusters.sort(key=lambda x: (-x["avg_quality"], x["avg_cost"]))
 
         # Find best cluster meeting quality threshold
         for cluster in matching_clusters:
@@ -311,7 +307,7 @@ class IntelligentRouter:
             else:
                 model = "gpt-3.5-turbo"  # 16k context, cheaper
             reasoning_parts.append(
-                f"Long query ({features['token_count']} tokens): using extended context model"
+                f"Long query ({features['token_count']} tokens): using bigger model"
             )
             return {
                 "model": model,
@@ -321,10 +317,7 @@ class IntelligentRouter:
             }
 
         # Rule 4: High similarity + good cluster match = use cluster recommendation
-        if (
-            avg_similarity > 0.75
-            and cluster_recommendation["confidence"] > 0.7
-        ):
+        if avg_similarity > 0.75 and cluster_recommendation["confidence"] > 0.7:
             model = cluster_recommendation["recommended_model"]
 
             # But check if model fits budget tier
@@ -332,11 +325,11 @@ class IntelligentRouter:
                 # Downgrade to cheaper alternative
                 model = "gpt-3.5-turbo"
                 reasoning_parts.append(
-                    f"Budget economy mode: downgraded from {cluster_recommendation['recommended_model']}"
+                    f"Budget economy mode: downgraded from {cluster_recommendation['recommended_model']}"  # noqa: E501
                 )
             else:
                 reasoning_parts.append(
-                    f"Cluster {cluster_recommendation['cluster_id']} pattern (similarity: {avg_similarity:.2f})"
+                    f"Cluster {cluster_recommendation['cluster_id']} pattern (similarity: {avg_similarity:.2f})"  # noqa: E501
                 )
 
             return {
@@ -376,18 +369,12 @@ class IntelligentRouter:
         }
 
         if category in category_defaults:
-            model = category_defaults[category].get(
-                budget_tier, "gpt-3.5-turbo"
-            )
-            reasoning_parts.append(
-                f"Category: {category} | Budget tier: {budget_tier}"
-            )
+            model = category_defaults[category].get(budget_tier, "gpt-3.5-turbo")
+            reasoning_parts.append(f"Category: {category} | Budget tier: {budget_tier}")
         else:
             # Default fallback
             model = self.model_tiers[budget_tier][0]
-            reasoning_parts.append(
-                f"Default for budget tier: {budget_tier}"
-            )
+            reasoning_parts.append(f"Default for budget tier: {budget_tier}")
 
         return {
             "model": model,

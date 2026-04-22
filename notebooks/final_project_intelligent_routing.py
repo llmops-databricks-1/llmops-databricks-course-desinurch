@@ -18,6 +18,7 @@ Architecture:
 """
 
 import mlflow
+import pandas as pd
 from loguru import logger
 from pyspark.sql import SparkSession
 
@@ -41,7 +42,9 @@ env = get_env()
 cfg = load_config("../project_config.yml", env)
 
 # Set MLflow experiment
-mlflow.set_experiment(f"/Users/{spark.sql('SELECT current_user()').collect()[0][0]}/llm-routing-system")
+mlflow.set_experiment(
+    f"/Users/{spark.sql('SELECT current_user()').collect()[0][0]}/llm-routing-system"
+)
 
 logger.info(f"Environment: {env}")
 logger.info(f"Catalog: {cfg.catalog}")
@@ -165,12 +168,12 @@ logger.info("\n" + "=" * 80)
 logger.info("Scenario 1: Standard Code Generation")
 logger.info("=" * 80)
 logger.info(f"Query: {test_query_1}")
-logger.info(f"\nRouting Decision:")
+logger.info("\nRouting Decision:")
 logger.info(f"  Model: {result_1['routing']['model']}")
 logger.info(f"  Estimated Cost: ${result_1['routing']['estimated_cost']:.6f}")
 logger.info(f"  Confidence: {result_1['routing']['confidence']:.2f}")
 logger.info(f"  Reasoning: {result_1['routing']['reasoning']}")
-logger.info(f"\nBudget Status:")
+logger.info("\nBudget Status:")
 logger.info(f"  Remaining: ${result_1['budget']['remaining']:,.2f}")
 logger.info(f"  Utilization: {result_1['budget']['utilization_pct']:.1f}%")
 logger.info(f"  Tier: {result_1['budget']['tier']}")
@@ -183,7 +186,7 @@ logger.info(f"  Tier: {result_1['budget']['tier']}")
 # COMMAND ----------
 
 test_query_2 = """
-Explain the architectural differences between microservices and monolithic 
+Explain the architectural differences between microservices and monolithic
 applications, including pros/cons, when to use each, and migration strategies.
 """
 
@@ -198,7 +201,7 @@ logger.info("\n" + "=" * 80)
 logger.info("Scenario 2: Premium User - Complex Explanation")
 logger.info("=" * 80)
 logger.info(f"Query: {test_query_2.strip()[:100]}...")
-logger.info(f"\nRouting Decision:")
+logger.info("\nRouting Decision:")
 logger.info(f"  Model: {result_2['routing']['model']}")
 logger.info(f"  Estimated Cost: ${result_2['routing']['estimated_cost']:.6f}")
 logger.info(f"  Confidence: {result_2['routing']['confidence']:.2f}")
@@ -230,7 +233,7 @@ logger.info("\n" + "=" * 80)
 logger.info("Scenario 3: Long Query (>512 tokens)")
 logger.info("=" * 80)
 logger.info(f"Query length: {len(test_query_3)} chars, ~{len(test_query_3) // 4} tokens")
-logger.info(f"\nRouting Decision:")
+logger.info("\nRouting Decision:")
 logger.info(f"  Model: {result_3['routing']['model']}")
 logger.info(f"  Estimated Cost: ${result_3['routing']['estimated_cost']:.6f}")
 logger.info(f"  Rule: {result_3['routing']['rule']}")
@@ -273,8 +276,6 @@ logger.info(f"Reasoning: {result_4['routing']['reasoning']}")
 
 # COMMAND ----------
 
-import pandas as pd
-
 test_queries = [
     "Write Python code to read CSV files",
     "Explain machine learning in simple terms",
@@ -292,19 +293,24 @@ for query in test_queries:
         user_id="comparison_test",
         user_tier="standard",
     )
-    
+
     # Naive routing (always GPT-4)
     naive_cost = router.estimate_cost("gpt-4", len(query) // 4 * 4, 500)
-    
-    comparison_results.append({
-        "query": query[:50] + "...",
-        "intelligent_model": result['routing']['model'],
-        "intelligent_cost": result['routing']['estimated_cost'],
-        "naive_model": "gpt-4",
-        "naive_cost": naive_cost,
-        "savings": naive_cost - result['routing']['estimated_cost'],
-        "savings_pct": ((naive_cost - result['routing']['estimated_cost']) / naive_cost) * 100,
-    })
+
+    comparison_results.append(
+        {
+            "query": query[:50] + "...",
+            "intelligent_model": result["routing"]["model"],
+            "intelligent_cost": result["routing"]["estimated_cost"],
+            "naive_model": "gpt-4",
+            "naive_cost": naive_cost,
+            "savings": naive_cost - result["routing"]["estimated_cost"],
+            "savings_pct": (
+                (naive_cost - result["routing"]["estimated_cost"]) / naive_cost
+            )
+            * 100,
+        }
+    )
 
 comparison_df = pd.DataFrame(comparison_results)
 
@@ -331,8 +337,8 @@ days_per_month = 30
 total_monthly_requests = requests_per_day * days_per_month
 
 # Extrapolate from comparison
-avg_naive_cost = comparison_df['naive_cost'].mean()
-avg_intelligent_cost = comparison_df['intelligent_cost'].mean()
+avg_naive_cost = comparison_df["naive_cost"].mean()
+avg_intelligent_cost = comparison_df["intelligent_cost"].mean()
 
 naive_monthly_cost = avg_naive_cost * total_monthly_requests
 intelligent_monthly_cost = avg_intelligent_cost * total_monthly_requests
@@ -341,16 +347,16 @@ monthly_savings = naive_monthly_cost - intelligent_monthly_cost
 logger.info("\n" + "=" * 80)
 logger.info("Monthly Budget Impact (Projected)")
 logger.info("=" * 80)
-logger.info(f"Assumptions:")
+logger.info("Assumptions:")
 logger.info(f"  Requests per day: {requests_per_day:,}")
 logger.info(f"  Total monthly requests: {total_monthly_requests:,}")
-logger.info(f"\nNaive Routing (Always GPT-4):")
+logger.info("\nNaive Routing (Always GPT-4):")
 logger.info(f"  Avg cost per request: ${avg_naive_cost:.6f}")
 logger.info(f"  Monthly cost: ${naive_monthly_cost:,.2f}")
-logger.info(f"\nIntelligent Routing:")
+logger.info("\nIntelligent Routing:")
 logger.info(f"  Avg cost per request: ${avg_intelligent_cost:.6f}")
 logger.info(f"  Monthly cost: ${intelligent_monthly_cost:,.2f}")
-logger.info(f"\nImpact:")
+logger.info("\nImpact:")
 logger.info(f"  Monthly savings: ${monthly_savings:,.2f}")
 logger.info(f"  Savings rate: {(monthly_savings / naive_monthly_cost) * 100:.1f}%")
 logger.info(f"  Requests within budget: {intelligent_monthly_cost < 200_000}")
@@ -367,21 +373,27 @@ spending_report = agent.get_spending_report()
 logger.info("\n" + "=" * 80)
 logger.info("Current Spending Report")
 logger.info("=" * 80)
-logger.info(f"\nBudget Overview:")
+logger.info("\nBudget Overview:")
 logger.info(f"  Monthly Budget: ${spending_report['budget']['monthly_budget']:,.2f}")
 logger.info(f"  Current Spend: ${spending_report['budget']['current_spend']:,.2f}")
 logger.info(f"  Remaining: ${spending_report['budget']['remaining_budget']:,.2f}")
 logger.info(f"  Utilization: {spending_report['budget']['utilization_pct']:.1f}%")
 
-if spending_report['top_users']:
-    logger.info(f"\nTop 5 Spending Users:")
-    for i, user in enumerate(spending_report['top_users'][:5], 1):
-        logger.info(f"  {i}. {user['user_id']}: ${user['total_spend']:.4f} ({user['request_count']} requests)")
+if spending_report["top_users"]:
+    logger.info("\nTop 5 Spending Users:")
+    for i, user in enumerate(spending_report["top_users"][:5], 1):
+        logger.info(
+            f"  {i}. {user['user_id']}: ${user['total_spend']:.4f}"
+            f" ({user['request_count']} requests)"
+        )
 
-if spending_report['top_models']:
-    logger.info(f"\nTop Models by Spend:")
-    for i, model in enumerate(spending_report['top_models'][:5], 1):
-        logger.info(f"  {i}. {model['model']}: ${model['total_spend']:.4f} ({model['request_count']} requests)")
+if spending_report["top_models"]:
+    logger.info("\nTop Models by Spend:")
+    for i, model in enumerate(spending_report["top_models"][:5], 1):
+        logger.info(
+            f"  {i}. {model['model']}: ${model['total_spend']:.4f}"
+            f" ({model['request_count']} requests)"
+        )
 
 # COMMAND ----------
 
@@ -395,7 +407,7 @@ logger.info("\n" + "=" * 80)
 logger.info("MLflow Tracing")
 logger.info("=" * 80)
 logger.info("✓ All routing decisions are traced in MLflow")
-logger.info(f"✓ Experiment: /Users/.../llm-routing-system")
+logger.info("✓ Experiment: /Users/.../llm-routing-system")
 logger.info("✓ Each trace includes:")
 logger.info("  - Budget check span")
 logger.info("  - Routing decision span")
