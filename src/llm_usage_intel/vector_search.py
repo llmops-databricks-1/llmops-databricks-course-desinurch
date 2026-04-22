@@ -1,80 +1,11 @@
 """Vector search utilities for query clustering and similarity analysis."""
 
-import re
 from typing import Any
 
 import pandas as pd
-from databricks.sdk import WorkspaceClient
-from databricks.vector_search.client import VectorSearchClient
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.functions import col, pandas_udf
 from pyspark.sql.types import ArrayType, DoubleType
-
-
-def _normalize_index_name(index_name: str) -> str:
-    """Convert an index name to Databricks-compatible format.
-
-    Supports Unity Catalog full names: catalog.schema.index_name.
-    Each name segment may contain only alphanumerics and underscores.
-    """
-
-    parts = [part for part in index_name.split(".") if part]
-    normalized_parts: list[str] = []
-    for part in parts:
-        normalized_part = re.sub(r"[^0-9A-Za-z_]", "_", part)
-        normalized_part = re.sub(r"_+", "_", normalized_part).strip("_")
-        if normalized_part:
-            normalized_parts.append(normalized_part)
-
-    normalized = ".".join(normalized_parts)
-    if not normalized:
-        msg = "Index name is empty after normalization"
-        raise ValueError(msg)
-    return normalized
-
-
-def _resolve_existing_index_name(
-    vsc: VectorSearchClient,
-    endpoint_name: str,
-    requested_index_name: str,
-) -> str:
-    """Resolve a requested index name to an existing index on the endpoint."""
-
-    normalized = _normalize_index_name(requested_index_name)
-    if "." in normalized:
-        return normalized
-
-    # Backward compatibility for old style: catalog__schema__index_name
-    if "__" in requested_index_name:
-        raw_parts = requested_index_name.split("__", maxsplit=2)
-        if len(raw_parts) == 3:
-            maybe_full = ".".join(raw_parts)
-            normalized_maybe_full = _normalize_index_name(maybe_full)
-            if "." in normalized_maybe_full:
-                return normalized_maybe_full
-
-    try:
-        payload = vsc.list_indexes(endpoint_name)
-    except Exception:
-        return normalized
-
-    indexes = payload.get("vector_indexes", []) if isinstance(payload, dict) else []
-    existing_names = [idx.get("name") for idx in indexes if isinstance(idx, dict)]
-    existing_names = [name for name in existing_names if isinstance(name, str)]
-
-    exact_suffix_matches = [
-        name for name in existing_names if name.endswith(f".{normalized}")
-    ]
-    if exact_suffix_matches:
-        return exact_suffix_matches[0]
-
-    compact_requested = normalized.replace("__", "_")
-    for name in existing_names:
-        compact_name = name.replace(".", "_")
-        if compact_name.endswith(compact_requested):
-            return name
-
-    return normalized
 
 
 def generate_embeddings(
@@ -94,23 +25,19 @@ def generate_embeddings(
     Returns:
         DataFrame with embeddings added
     """
-    workspace_client = WorkspaceClient()
-    token = workspace_client.tokens.create(lifetime_seconds=1200).token_value
-    serving_base_url = f"{workspace_client.config.host.rstrip('/')}/serving-endpoints"
+    from databricks.sdk import WorkspaceClient
+    from openai import OpenAI
+
+    w = WorkspaceClient()
+    token = w.tokens.create(lifetime_seconds=1200).token_value
+
+    client = OpenAI(
+        api_key=token, base_url=f"{w.config.host.rstrip('/')}/serving-endpoints"
+    )
 
     @pandas_udf(ArrayType(DoubleType()))
     def embed_text(texts: pd.Series) -> pd.Series:
         """UDF to generate embeddings for a batch of texts."""
-        from openai import OpenAI
-
-        # Lazily initialize per worker process to avoid pickling client internals.
-        if not hasattr(embed_text, "_client"):
-            embed_text._client = OpenAI(
-                api_key=token,
-                base_url=serving_base_url,
-            )
-
-        client = embed_text._client
         embeddings = []
         batch_size = 100  # Process in batches to avoid rate limits
 
@@ -121,6 +48,7 @@ def generate_embeddings(
                 batch_embeddings = [item.embedding for item in response.data]
                 embeddings.extend(batch_embeddings)
             except Exception as e:
+                # Fallback: return zero embeddings on error
                 print(f"Error generating embeddings: {e}")
                 embeddings.extend([[0.0] * 1024] * len(batch))
 
@@ -136,7 +64,7 @@ def create_vector_search_index(
     embedding_column: str,
     vector_search_endpoint: str,
     text_columns: list[str] | None = None,
-) -> str:
+) -> None:
     """Create a Databricks Vector Search index.
 
     Args:
@@ -149,43 +77,33 @@ def create_vector_search_index(
     """
     from databricks.vector_search.client import VectorSearchClient
 
-    normalized_index_name = _normalize_index_name(index_name)
-
-    # If caller passed only short index name, expand to full UC name.
-    if "." not in normalized_index_name and source_table.count(".") >= 2:
-        source_parts = source_table.split(".")
-        normalized_index_name = (
-            f"{source_parts[0]}.{source_parts[1]}.{normalized_index_name}"
-        )
-
     vsc = VectorSearchClient()
 
+    # Check if endpoint exists, create if needed
     try:
         vsc.get_endpoint(vector_search_endpoint)
     except Exception:
         print(f"Creating vector search endpoint: {vector_search_endpoint}")
         vsc.create_endpoint(name=vector_search_endpoint)
 
+    # Create index
     try:
         vsc.create_delta_sync_index(
             endpoint_name=vector_search_endpoint,
             source_table_name=source_table,
-            index_name=normalized_index_name,
+            index_name=index_name,
             pipeline_type="TRIGGERED",
             primary_key="row_id",
             embedding_dimension=1024,  # For databricks-gte-large-en
             embedding_vector_column=embedding_column,
             columns=text_columns,
         )
-        print(f"Created vector search index: {normalized_index_name}")
+        print(f"Created vector search index: {index_name}")
     except Exception as e:
         print(f"Index creation error (may already exist): {e}")
 
-    return normalized_index_name
-
 
 def search_similar_queries(
-    vector_search_endpoint: str,
     index_name: str,
     query_text: str,
     embedding_endpoint: str,
@@ -194,7 +112,6 @@ def search_similar_queries(
     """Search for similar queries using vector search.
 
     Args:
-        vector_search_endpoint: Vector search endpoint name
         index_name: Vector search index name
         query_text: Query text to search for
         embedding_endpoint: Embedding endpoint name
@@ -203,33 +120,29 @@ def search_similar_queries(
     Returns:
         DataFrame with similar queries and scores
     """
+    from databricks.sdk import WorkspaceClient
+    from databricks.vector_search.client import VectorSearchClient
     from openai import OpenAI
 
+    # Generate embedding for query
     w = WorkspaceClient()
     token = w.tokens.create(lifetime_seconds=1200).token_value
     client = OpenAI(
         api_key=token, base_url=f"{w.config.host.rstrip('/')}/serving-endpoints"
     )
 
-    vsc = VectorSearchClient()
-    normalized_index_name = _resolve_existing_index_name(
-        vsc,
-        endpoint_name=vector_search_endpoint,
-        requested_index_name=index_name,
-    )
-
     response = client.embeddings.create(model=embedding_endpoint, input=[query_text])
     query_embedding = response.data[0].embedding
 
-    results = vsc.get_index(
-        endpoint_name=vector_search_endpoint,
-        index_name=normalized_index_name,
-    ).similarity_search(
+    # Search vector index
+    vsc = VectorSearchClient()
+    results = vsc.get_index(index_name).similarity_search(
         query_vector=query_embedding,
         columns=["query_text", "query_category", "cost"],
         num_results=num_results,
     )
 
+    # Convert to DataFrame
     if results and "data_array" in results:
         return pd.DataFrame(results["data_array"])
     else:
@@ -257,6 +170,7 @@ def cluster_queries_kmeans(
     # Convert embeddings to numpy array
     embeddings = np.array(embeddings_df[embedding_column].tolist())
 
+    # Perform clustering
     kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
     clusters = kmeans.fit_predict(embeddings)
 
@@ -306,7 +220,7 @@ def analyze_clusters(
             analysis["dominant_model"] = cluster_data["model"].mode()[0]
 
         # Numeric aggregations
-        for col in include_columns:  # noqa: F402
+        for col in include_columns:
             if col in cluster_data.columns:
                 analysis[f"{col}_mean"] = cluster_data[col].mean()
                 analysis[f"{col}_median"] = cluster_data[col].median()
@@ -352,11 +266,10 @@ def find_cluster_optimization_opportunities(
             }
 
             # Simple heuristic: if cluster is large and has cost variation
-            if analysis["size"] > 50:  # Arbitrary threshold for "large" cluster
+            if analysis["size"] > 50:  # Significant cluster
                 opportunity["recommendation"] = (
-                    f"Analyze model performance in this cluster"
-                    f" of {analysis['size']} queries."
-                    f" Multiple models ({len(models)}) are being used."
+                    f"Analyze model performance in this cluster of {analysis['size']} queries. "
+                    f"Multiple models ({len(models)}) are being used."
                 )
                 opportunities.append(opportunity)
 
@@ -405,27 +318,16 @@ def visualize_clusters_2d(
     import numpy as np
     from umap import UMAP
 
+    # Convert embeddings to numpy array
     embeddings = np.array(embeddings_df[embedding_column].tolist())
 
+    # Reduce to 2D
     reducer = UMAP(n_components=2, random_state=42, n_neighbors=15, min_dist=0.1)
     coords_2d = reducer.fit_transform(embeddings)
 
+    # Add coordinates to dataframe
     result_df = embeddings_df.copy()
     result_df["x"] = coords_2d[:, 0]
     result_df["y"] = coords_2d[:, 1]
 
     return result_df, reducer
-
-
-def delete_vector_search_endpoint(vector_search_endpoint: str) -> None:
-    """Delete a Databricks Vector Search endpoint.
-
-    Args:
-        vector_search_endpoint: Name of the vector search endpoint to delete
-    """
-    vsc = VectorSearchClient()
-    try:
-        vsc.delete_endpoint(vector_search_endpoint)
-        print(f"Deleted vector search endpoint: {vector_search_endpoint}")
-    except Exception as e:
-        print(f"Error deleting endpoint (may not exist): {e}")
