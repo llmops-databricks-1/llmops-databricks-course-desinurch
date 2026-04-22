@@ -1,0 +1,23 @@
+resources:
+  jobs:
+    intel_routing_agent:
+      name: intel_routing_agent
+      tags:
+        project_name: "intel-routing-agent"
+
+      environments:
+        - environment_key: default
+          spec:
+            environment_version: "4"
+            dependencies:
+              - ../dist/*.whl
+
+      tasks:
+        - task_key: intel_routing_agent
+          environment_key: default
+          notebook_task:
+            notebook_path: ../notebooks/final_project_intelligent_routing.py
+            base_parameters:
+              env: ${bundle.target}
+              git_sha: "${var.git_sha}"
+              run_id: "{{job.run_id}}"
